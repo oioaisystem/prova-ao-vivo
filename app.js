@@ -21,11 +21,11 @@ const msgEl = $('#msg');
 
 // ---------- Catálogo de teste (armações desenhadas por código) ----------
 const MODELOS = {
-  redonda:    { nome: 'Redonda',    forma: 'redonda',    calibre: [49, 20], altura: 44 },
-  retangular: { nome: 'Retangular', forma: 'retangular', calibre: [54, 17], altura: 38 },
-  gatinho:    { nome: 'Gatinho',    forma: 'gatinho',    calibre: [52, 18], altura: 41 },
-  aviador:    { nome: 'Aviador',    forma: 'aviador',    calibre: [58, 14], altura: 50 },
-  foto01:     { nome: 'Real (foto)', foto: 'armacoes/foto-01', calibre: [52, 18], altura: 41 },
+  foto01:     { nome: 'Peça real 01', foto: 'armacoes/foto-01', calibre: [52, 18], altura: 41 },
+  redonda:    { nome: 'Desenho: redonda',    forma: 'redonda',    calibre: [49, 20], altura: 44 },
+  retangular: { nome: 'Desenho: retangular', forma: 'retangular', calibre: [54, 17], altura: 38 },
+  gatinho:    { nome: 'Desenho: gatinho',    forma: 'gatinho',    calibre: [52, 18], altura: 41 },
+  aviador:    { nome: 'Desenho: aviador',    forma: 'aviador',    calibre: [58, 14], altura: 50 },
 };
 const CORES = {
   preto:     { nome: 'Preto',     cor: 0x141414, metal: 0.1, rugos: 0.45 },
@@ -42,7 +42,7 @@ const LENTES = {
 };
 const CALIBRES = [[48, 20], [49, 20], [50, 19], [52, 18], [54, 17], [56, 16], [58, 14]];
 
-const escolha = { modelo: 'redonda', cor: 'preto', lente: 'incolor', calibre: null };
+const escolha = { modelo: 'foto01', cor: 'preto', lente: 'incolor', calibre: null };
 
 // ---------- Cena 3D (câmera ortográfica em pixels do vídeo) ----------
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: false });
