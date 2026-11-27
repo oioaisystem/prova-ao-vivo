@@ -18,10 +18,11 @@ Abra http://localhost:8710. A câmera só funciona em `localhost` ou em `https`.
 
 ## Como testar em tablet e celular
 
-O aparelho precisa abrir o protótipo por **https**. Opções: a Vercel (quando a conta destravar) ou um túnel https temporário a partir do PC. Em cada aparelho: abrir, permitir a câmera, mexer a cabeça por 30 s, trocar 2 modelos e tocar em "Copiar resultado".
+Link público (GitHub Pages, repositório `oioaisystem/prova-ao-vivo`, público): **https://oioaisystem.github.io/prova-ao-vivo/**. Para atualizar: copie os arquivos desta pasta para um clone desse repositório e faça push com a conta `oioaisystem`. Em cada aparelho: abrir, permitir a câmera, mexer a cabeça por 30 s, trocar 2 modelos e tocar em "Copiar resultado".
 
 ## Resultados (preencher)
 
 | Data | Aparelho | Câmera | FPS | Detecção (ms) | Observações |
 | --- | --- | --- | --- | --- | --- |
 | 27/11/2026 | PC (navegador do app Claude), foto 299×303 | foto | 60 | ~11–15 (GPU) | Armação bem posicionada nos 4 modelos; carga do modelo ~0,8 s |
+| 27/11/2026 | PC do dono, Chrome 158, Windows | webcam frontal 1280×720 | 60 | 15,6 média (2.335 quadros, GPU) | Carga do modelo 0,7 s. DP estimada 56,4 mm e rosto 131 mm (conferir com a receita na T11) |
