@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#001A3E">
+  <title>ÔIÔ AI · Prova ao vivo (protótipo T10)</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icone-192.png">
+  <link rel="apple-touch-icon" href="icone-192.png">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --marinho: #001A3E;
+      --verde: #00A4A8;
+      --fundo: #F5F7FA;
+      --texto: #001A3E;
+      font-family: Montserrat, Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--marinho); color: #fff; }
+    body { display: flex; flex-direction: column; overflow: hidden; }
+
+    header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+      background: var(--marinho);
+    }
+    header b { font-size: 18px; letter-spacing: .5px; }
+    header b span { color: var(--verde); }
+    header small { opacity: .75; font-size: 12px; }
+
+    .palco { position: relative; flex: 1; min-height: 0; background: #000; overflow: hidden; }
+    .camada { position: absolute; inset: 0; }
+    .camada.espelho { transform: scaleX(-1); }
+    .camada video, .camada img, .camada canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    }
+    #foto { display: none; }
+
+    #stats {
+      position: absolute; left: 10px; top: 10px; z-index: 2;
+      background: rgba(0, 26, 62, .78); padding: 8px 10px; border-radius: 12px;
+      font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums;
+    }
+    #stats b { color: var(--verde); }
+    #status {
+      position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 14px; text-align: center; padding: 24px;
+      background: rgba(0, 26, 62, .92); font-size: 15px;
+    }
+    #status.oculto { display: none; }
+
+    .painel {
+      background: var(--fundo); color: var(--texto);
+      padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+      display: grid; gap: 8px;
+    }
+    .linha { display: flex; gap: 6px; overflow-x: auto; align-items: center; scrollbar-width: none; }
+    .linha::-webkit-scrollbar { display: none; }
+    .rotulo { font-size: 11px; font-weight: 700; text-transform: uppercase; opacity: .7; min-width: 54px; }
+    button, select {
+      font: inherit; font-size: 14px; border-radius: 999px; border: 1.5px solid #cfd8e3;
+      background: #fff; color: var(--texto); padding: 8px 14px; white-space: nowrap; cursor: pointer;
+      min-height: 40px;
+    }
+    button.ativo { border-color: var(--verde); background: #E6F6F6; font-weight: 700; }
+    button.principal { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 700; }
+    .bolinha { width: 16px; height: 16px; border-radius: 50%; display: inline-block; vertical-align: -3px; margin-right: 6px; border: 1px solid rgba(0,0,0,.2); }
+  </style>
+</head>
+<body>
+  <header>
+    <b>ÔIÔ <span>AI</span></b>
+    <small>Prova ao vivo · protótipo T10 (teste de risco)</small>
+  </header>
+
+  <div class="palco">
+    <div class="camada espelho" id="camada">
+      <video id="video" playsinline muted autoplay></video>
+      <img id="foto" alt="Foto de teste">
+      <canvas id="cena"></canvas>
+    </div>
+    <div id="stats">Aguardando…</div>
+    <div id="status">
+      <div>Este protótipo usa a câmera só neste aparelho.<br>Nenhuma imagem sai daqui.</div>
+      <button class="principal" id="btnCamera">Abrir câmera</button>
+      <button id="btnFoto2">Testar com uma foto</button>
+      <div id="msg" style="font-size:13px;opacity:.8"></div>
+    </div>
+  </div>
+
+  <div class="painel">
+    <div class="linha" id="linhaModelos"><span class="rotulo">Modelo</span></div>
+    <div class="linha" id="linhaCores"><span class="rotulo">Cor</span></div>
+    <div class="linha" id="linhaLentes"><span class="rotulo">Lente</span></div>
+    <div class="linha">
+      <span class="rotulo">Calibre</span>
+      <select id="calibre" aria-label="Calibre e ponte"></select>
+      <button id="btnTrocar">Trocar câmera</button>
+      <button id="btnFoto">Usar foto</button>
+      <button id="btnCopiar">Copiar resultado</button>
+      <input type="file" id="arquivo" accept="image/*" hidden>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
