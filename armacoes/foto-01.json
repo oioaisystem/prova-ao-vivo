@@ -1,0 +1,11 @@
+{
+  "nome": "foto-01",
+  "largura_mm": 138.0,
+  "altura_mm": 41.3,
+  "centro_lente_y_mm": 0.6,
+  "haste": {
+    "comprimento_mm": 110.9,
+    "altura_mm": 28.1,
+    "abaixo_do_topo_mm": 0.3
+  }
+}

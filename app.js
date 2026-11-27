@@ -25,6 +25,7 @@ const MODELOS = {
   retangular: { nome: 'Retangular', forma: 'retangular', calibre: [54, 17], altura: 38 },
   gatinho:    { nome: 'Gatinho',    forma: 'gatinho',    calibre: [52, 18], altura: 41 },
   aviador:    { nome: 'Aviador',    forma: 'aviador',    calibre: [58, 14], altura: 50 },
+  foto01:     { nome: 'Real (foto)', foto: 'armacoes/foto-01', calibre: [52, 18], altura: 41 },
 };
 const CORES = {
   preto:     { nome: 'Preto',     cor: 0x141414, metal: 0.1, rugos: 0.45 },
@@ -125,8 +126,82 @@ function texturaSombra(contornos, larguraMm, alturaMm) {
   return t;
 }
 
+// ---------- Armação a partir de fotos (frente + haste), preparada por ferramentas/preparar_armacao.py ----------
+const cacheFoto = {};
+async function carregarFoto(base) {
+  if (cacheFoto[base]) return cacheFoto[base];
+  const carregador = new THREE.TextureLoader();
+  const tex = (u) => new Promise((ok, erro) => carregador.load(u, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; ok(t); }, undefined, erro));
+  const [info, frente, lente, haste] = await Promise.all([
+    fetch(base + '.json').then((r) => r.json()), tex(base + '-frente.png'), tex(base + '-lente.png'), tex(base + '-haste.png'),
+  ]);
+  lente.colorSpace = THREE.NoColorSpace;
+  return (cacheFoto[base] = { info, frente, lente, haste });
+}
+
+function montarOculosFoto(m, d) {
+  const [L, B] = escolha.calibre || m.calibre;
+  const k = (2 * L + B) / (2 * m.calibre[0] + m.calibre[1]);   // calibre maior = armação maior
+  const W = d.info.largura_mm * k, Hf = d.info.altura_mm * k;
+  const cy = -d.info.centro_lente_y_mm * k;                     // centro das lentes em y = 0
+  const le = LENTES[escolha.lente];
+  const g = new THREE.Group();
+
+  const sombra = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.03, Hf * 1.08), new THREE.MeshBasicMaterial({
+    map: d.frente, color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false, toneMapped: false,
+  }));
+  sombra.position.set(0, cy - 2.5, -4);
+  sombra.renderOrder = 1;
+  g.add(sombra);
+
+  const lente = new THREE.Mesh(new THREE.PlaneGeometry(W, Hf), new THREE.MeshPhysicalMaterial({
+    color: le.cor, transparent: true, opacity: le.opac, alphaMap: d.lente, roughness: 0.02, metalness: 0,
+    clearcoat: 1, envMapIntensity: 2.2, depthWrite: false,
+  }));
+  lente.position.set(0, cy, -0.4);
+  lente.renderOrder = 2;
+  g.add(lente);
+
+  const frente = new THREE.Mesh(new THREE.PlaneGeometry(W, Hf), new THREE.MeshBasicMaterial({
+    map: d.frente, transparent: true, alphaTest: 0.02, toneMapped: false,
+  }));
+  frente.position.set(0, cy, 0);
+  frente.renderOrder = 3;
+  g.add(frente);
+
+  const h = d.info.haste;
+  const comp = h.comprimento_mm * k, alt = h.altura_mm * k;
+  const topo = cy + Hf / 2;
+  for (const lado of [1, -1]) {
+    const pivo = new THREE.Group();
+    pivo.position.set(lado * (W / 2 - 3), topo - h.abaixo_do_topo_mm * k, -1.5);
+    const placa = new THREE.Mesh(new THREE.PlaneGeometry(comp, alt), new THREE.MeshBasicMaterial({
+      map: d.haste, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false,
+    }));
+    placa.rotation.y = Math.PI / 2;            // dobradiça (lado esquerdo da foto) na frente
+    placa.position.set(0, -alt / 2, -comp / 2);
+    pivo.add(placa);
+    pivo.rotation.x = -0.16;                   // compensa a inclinação da frente: desce até a orelha
+    pivo.rotation.y = lado * -0.05;
+    g.add(pivo);
+  }
+  g.rotation.x = 0.12;
+  g.position.set(0, -2, 3);
+  return g;
+}
+
+let pedidoFoto = 0;
 function montarOculos() {
   const m = MODELOS[escolha.modelo];
+  if (m.foto) {
+    const meu = ++pedidoFoto;
+    carregarFoto(m.foto).then((d) => {
+      if (meu !== pedidoFoto) return;
+      trocarOculos(montarOculosFoto(m, d));
+    }).catch((e) => { console.error(e); msgEl.textContent = 'Não consegui carregar a armação: ' + e.message; });
+    return;
+  }
+  pedidoFoto++;
   const [L, B] = escolha.calibre || m.calibre;
   const Hl = m.altura * (L / m.calibre[0]); // altura acompanha o calibre
   const c = CORES[escolha.cor];
@@ -236,9 +311,17 @@ function montarOculos() {
   g.rotation.x = 0.12;
   g.position.set(0, -2, 3);
 
+  trocarOculos(g);
+}
+
+function trocarOculos(g) {
   if (oculos) {
     ancora.remove(oculos);
-    oculos.traverse((o) => { o.geometry?.dispose(); o.material?.map?.dispose(); });
+    oculos.traverse((o) => {
+      o.geometry?.dispose();
+      const mp = o.material?.map;
+      if (mp && !Object.values(cacheFoto).some((c) => c.frente === mp || c.haste === mp)) mp.dispose();
+    });
   }
   oculos = g;
   ancora.add(g);

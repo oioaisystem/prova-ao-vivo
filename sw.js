@@ -1,6 +1,6 @@
 // Service worker mínimo: guarda a "casca" do app para abrir rápido e permitir instalar.
-const CACHE = 'oioai-t10-v3';
-const CASCA = ['./', './index.html', './app.js?v=3', './manifest.webmanifest', './icone-192.png', './icone-512.png'];
+const CACHE = 'oioai-t10-v4';
+const CASCA = ['./', './index.html', './app.js?v=4', './manifest.webmanifest', './icone-192.png', './icone-512.png'];
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CASCA))));
 self.addEventListener('activate', (e) => e.waitUntil(
   caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
