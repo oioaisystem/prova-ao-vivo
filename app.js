@@ -134,10 +134,35 @@ async function carregarFoto(base) {
   const carregador = new THREE.TextureLoader();
   const tex = (u) => new Promise((ok, erro) => carregador.load(u, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; ok(t); }, undefined, erro));
   const [info, frente, lente, haste] = await Promise.all([
-    fetch(base + '.json').then((r) => r.json()), tex(base + '-frente.png?v=6'), tex(base + '-lente.png'), tex(base + '-haste.png?v=6'),
+    fetch(base + '.json?v=10').then((r) => r.json()), tex(base + '-frente.png?v=6'), tex(base + '-lente.png'), tex(base + '-haste.png?v=6'),
   ]);
   lente.colorSpace = THREE.NoColorSpace;
   return (cacheFoto[base] = { info, frente, lente, haste });
+}
+
+function criarFrenteSolida(d, k, W, Hf) {
+  const inf = d.info;
+  if (!inf.contorno_mm) return null;
+  const v = (p) => new THREE.Vector2(p[0] * k, p[1] * k);
+  const forma = new THREE.Shape(inf.contorno_mm.map(v));
+  for (const f of inf.furos_mm) forma.holes.push(new THREE.Path(f.map(v)));
+  const esp = (inf.espessura_mm || 5) * k;
+  const uv = {
+    generateTopUV(geo, vs, a, b, c) {
+      return [a, b, c].map((i) => new THREE.Vector2((vs[i * 3] + W / 2) / W, (vs[i * 3 + 1] + Hf / 2) / Hf));
+    },
+    generateSideWallUV() {
+      return [0, 0, 0, 0].map(() => new THREE.Vector2(0.5, 0.5));
+    },
+  };
+  const geo = new THREE.ExtrudeGeometry(forma, {
+    depth: esp, bevelEnabled: true, bevelThickness: 0.6, bevelSize: 0.35, bevelSegments: 2, curveSegments: 4, UVGenerator: uv,
+  });
+  const face = new THREE.MeshBasicMaterial({ map: d.frente, transparent: true, alphaTest: 0.1, toneMapped: false });
+  const lado = new THREE.MeshStandardMaterial({ color: inf.cor_lateral || '#222222', roughness: 0.55, metalness: 0.05 });
+  const m = new THREE.Mesh(geo, [face, lado]);
+  m.position.z = -esp;   // face da frente em z = 0
+  return m;
 }
 
 function montarOculosFoto(m, d) {
@@ -163,10 +188,11 @@ function montarOculosFoto(m, d) {
   lente.renderOrder = 2;
   g.add(lente);
 
-  const frente = new THREE.Mesh(new THREE.PlaneGeometry(W, Hf), new THREE.MeshBasicMaterial({
+  // Frente SÓLIDA (contorno da foto extrudado ~5 mm): de lado aparece a borda, não uma folha.
+  const frente = criarFrenteSolida(d, k, W, Hf) || new THREE.Mesh(new THREE.PlaneGeometry(W, Hf), new THREE.MeshBasicMaterial({
     map: d.frente, transparent: true, alphaTest: 0.02, toneMapped: false,
   }));
-  frente.position.set(0, cy, 0);
+  frente.position.x = 0; frente.position.y = cy;
   frente.renderOrder = 3;
   g.add(frente);
 
@@ -501,6 +527,7 @@ function laco() {
       if (r.faceLandmarks && r.faceLandmarks.length) {
         atualizarPose(r.faceLandmarks[0], r.facialTransformationMatrixes?.[0]);
         ancora.visible = true;
+        atualizarGuia();
       } else {
         ancora.visible = false; temPose = false; stats.semRosto++;
       }
@@ -610,12 +637,74 @@ $('#btnCopiar').onclick = async () => {
 };
 
 // Para testes automáticos: window.__t10 expõe o estado.
-window.__t10 = { stats, medidas, escolha, textoResultado, foto: () => capturarFoto().toDataURL('image/jpeg', 0.9), usarFotoUrl: async (url) => {
+window.__t10 = { stats, medidas, escolha, get angulo() { return angulo; }, definirPose: (...a) => definirPose(...a), textoResultado, foto: () => capturarFoto().toDataURL('image/jpeg', 0.9), usarFotoUrl: async (url) => {
   const b = await (await fetch(url)).blob(); await usarFoto(b);
 } };
 
 montarOculos();
 requestAnimationFrame(laco);
+
+// ---------- Ângulo do rosto e guia de pose para a foto ----------
+// guinada > 0 = cliente virou para a ESQUERDA dele; inclinação > 0 = queixo para cima.
+const angulo = { guinada: 0, inclinacao: 0 };
+function medirAngulo() {
+  const f = new THREE.Vector3(0, 0, 1).applyQuaternion(quat);
+  angulo.guinada = THREE.MathUtils.radToDeg(Math.atan2(f.x, f.z));
+  angulo.inclinacao = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(f.y, -1, 1)));
+}
+const POSES = {
+  frente:      { nome: 'Olhe reto para a tela',            guinada: 0,   inclinacao: 0 },
+  tres_esq:    { nome: 'Vire o rosto para a SUA esquerda',  guinada: 30,  inclinacao: 0 },
+  tres_dir:    { nome: 'Vire o rosto para a SUA direita',   guinada: -30, inclinacao: 0 },
+  lado_esq:    { nome: 'Vire mais para a SUA esquerda',     guinada: 50,  inclinacao: 0 },
+  lado_dir:    { nome: 'Vire mais para a SUA direita',      guinada: -50, inclinacao: 0 },
+  queixo_cima: { nome: 'Levante um pouco o queixo',         guinada: 0,   inclinacao: 12 },
+};
+const TOL = 7;
+let alvo = null;
+let certoDesde = 0;
+let aoFotografar = null;
+const guia = $('#guia');
+
+function definirPose(id, auto = true) {
+  alvo = id && POSES[id] ? { id, auto } : null;
+  certoDesde = 0;
+  guia.style.display = alvo ? 'flex' : 'none';
+  guia.classList.remove('ok');
+}
+
+function atualizarGuia() {
+  medirAngulo();
+  if (!alvo) return;
+  const p = POSES[alvo.id];
+  const dg = p.guinada - angulo.guinada, di = p.inclinacao - angulo.inclinacao;
+  const espelhado = camada.classList.contains('espelho');
+  let seta = '✓', sub = '';
+  if (Math.abs(dg) > TOL) {
+    const paraEsquerdaDele = dg > 0;
+    seta = (paraEsquerdaDele === espelhado) ? '⬅' : '➡';
+    sub = Math.abs(dg) > 20 ? 'devagar…' : 'quase lá…';
+  } else if (Math.abs(di) > TOL) {
+    seta = di > 0 ? '⬆' : '⬇';
+    sub = di > 0 ? 'queixo um pouco para cima' : 'queixo um pouco para baixo';
+  }
+  const certo = seta === '✓';
+  guia.classList.toggle('ok', certo);
+  $('#guiaSeta').textContent = seta;
+  $('#guiaTexto').textContent = certo ? 'Perfeito! Fique assim…' : p.nome;
+  $('#guiaSub').textContent = certo ? (alvo.auto ? 'a foto sai sozinha' : 'a vendedora vai tirar a foto') : sub;
+  const agora = performance.now();
+  if (!certo) { certoDesde = 0; return; }
+  if (!certoDesde) certoDesde = agora;
+  if (alvo.auto && agora - certoDesde > 800) {
+    const id = alvo.id;
+    definirPose(null);
+    guia.style.display = 'flex'; guia.classList.add('ok');
+    $('#guiaSeta').textContent = '📸'; $('#guiaTexto').textContent = 'Foto tirada!'; $('#guiaSub').textContent = '';
+    setTimeout(() => { if (!alvo) guia.style.display = 'none'; }, 1500);
+    aoFotografar?.(id);
+  }
+}
 
 // ---------- Prova assistida (T58b): este aparelho é o PROVADOR; a vendedora comanda de outro ----------
 const SUPABASE_URL = 'https://svmjsxwwsirrevthswak.supabase.co';
@@ -652,9 +741,15 @@ async function iniciarProvador(codigo) {
       if (c.zerar) { ajuste.y = 0; ajuste.z = 0; ajuste.s = 1; }
       aplicarAjuste();
     } else if (c.tipo === 'foto') {
-      canal.send({ type: 'broadcast', event: 'foto', payload: { img: fotoReduzida(800, 0.82), escolha: { ...escolha }, ajuste: { ...ajuste }, quando: Date.now() } });
+      mandarFoto(null);
+    } else if (c.tipo === 'pose') {
+      definirPose(c.id, c.auto !== false);
     }
   });
+  const mandarFoto = (pose) => canal.send({ type: 'broadcast', event: 'foto', payload: {
+    img: fotoReduzida(800, 0.82), pose, angulo: { ...angulo }, escolha: { ...escolha }, ajuste: { ...ajuste }, quando: Date.now(),
+  } });
+  aoFotografar = (pose) => mandarFoto(pose);
   canal.subscribe((st) => {
     selo.textContent = 'Sala ' + codigo + (st === 'SUBSCRIBED' ? ' · vendedora conectada' : ' · ' + st.toLowerCase());
   });
@@ -662,6 +757,7 @@ async function iniciarProvador(codigo) {
     if (!detector || !statusEl.classList.contains('oculto')) return;
     canal.send({ type: 'broadcast', event: 'quadro', payload: {
       img: fotoReduzida(360, 0.6), fps: stats.fps, rosto: ancora.visible, escolha: { ...escolha }, ajuste: { ...ajuste },
+      angulo: { ...angulo }, alvo: alvo?.id || null,
     } });
   }, 600);
 }

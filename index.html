@@ -45,6 +45,15 @@
     }
     #foto { display: none; }
 
+    #guia {
+      position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 2;
+      display: none; align-items: center; gap: 12px; max-width: 94%;
+      background: rgba(0, 26, 62, .88); color: #fff; padding: 12px 18px; border-radius: 18px;
+      font-size: 20px; font-weight: 700; text-align: center; box-shadow: 0 4px 18px rgba(0,0,0,.3);
+    }
+    #guia.ok { background: rgba(0, 164, 168, .95); }
+    #guia .seta { font-size: 34px; line-height: 1; }
+    #guia small { display: block; font-size: 13px; font-weight: 500; opacity: .85; }
     #stats {
       position: absolute; left: 10px; top: 10px; z-index: 2;
       background: rgba(0, 26, 62, .78); padding: 8px 10px; border-radius: 12px;
@@ -79,7 +88,7 @@
 <body>
   <header>
     <b>ÔIÔ <span>AI</span></b>
-    <small>Prova ao vivo · protótipo T10 · <b style="color:#00A4A8">versão 8</b></small>
+    <small>Prova ao vivo · protótipo T10 · <b style="color:#00A4A8">versão 10</b></small>
   </header>
 
   <div class="palco">
@@ -89,6 +98,7 @@
       <canvas id="cena"></canvas>
     </div>
     <div id="stats">Aguardando…</div>
+    <div id="guia"><span class="seta" id="guiaSeta"></span><div><span id="guiaTexto"></span><small id="guiaSub"></small></div></div>
     <div id="status">
       <div>Este protótipo usa a câmera só neste aparelho.<br>Nenhuma imagem sai daqui.</div>
       <button class="principal" id="btnCamera">Abrir câmera</button>
@@ -112,6 +122,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=8"></script>
+  <script type="module" src="app.js?v=10"></script>
 </body>
 </html>

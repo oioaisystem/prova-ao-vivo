@@ -39,6 +39,9 @@
       <div id="info">Aguardando o provador…</div>
     </section>
     <section class="cartao">
+      <h3 style="margin-top:0">Pose para a foto <small style="text-transform:none;font-weight:400">(aparece na tela do cliente)</small></h3>
+      <div class="botoes" id="poses"></div>
+      <label style="display:block;margin:8px 0;font-size:14px"><input type="checkbox" id="auto" checked> Tirar a foto sozinha quando o cliente acertar a pose</label>
       <button class="principal" id="btnFoto">📸 Tirar foto agora</button>
       <h3>Modelo</h3>
       <div class="botoes" id="modelos"></div>
@@ -67,6 +70,8 @@
     const MODELOS = { foto01: 'Peça real 01', redonda: 'Redonda', retangular: 'Retangular', gatinho: 'Gatinho', aviador: 'Aviador' };
     const LENTES = { incolor: 'Incolor', cinza: 'Solar cinza', marrom: 'Solar marrom', verde: 'Solar G15' };
     const CALIBRES = ['48-20', '50-19', '52-18', '54-17', '56-16', '58-14'];
+    const POSES = { frente: 'Frente', tres_esq: '3/4 esquerda do cliente', tres_dir: '3/4 direita do cliente',
+      lado_esq: 'Mais de lado (esq.)', lado_dir: 'Mais de lado (dir.)', queixo_cima: 'Queixo para cima', nenhuma: 'Tirar o guia' };
     let canal = null;
     const fotos = [];
     window.__vend = { fotos };
@@ -81,6 +86,10 @@
     grupo('#modelos', MODELOS, 'modelo');
     grupo('#lentes', LENTES, 'lente');
     grupo('#calibres', Object.fromEntries(CALIBRES.map((c) => [c, c])), 'calibre', 'valor');
+    for (const [id, nome] of Object.entries(POSES)) {
+      const b = document.createElement('button'); b.textContent = nome;
+      b.onclick = () => enviar({ tipo: 'pose', id, auto: $('#auto').checked }); $('#poses').appendChild(b);
+    }
     document.querySelectorAll('[data-aj]').forEach((b) => b.onclick = () => enviar({ tipo: 'ajuste', ...JSON.parse(b.dataset.aj) }));
     $('#btnFoto').onclick = () => enviar({ tipo: 'foto' });
 
@@ -89,13 +98,13 @@
       canal = sb.channel('prova-' + codigo, { config: { broadcast: { self: false } } });
       canal.on('broadcast', { event: 'quadro' }, ({ payload: q }) => {
         $('#ao-vivo').src = q.img;
-        $('#info').textContent = `${q.rosto ? 'Rosto detectado' : 'Sem rosto'} · ${q.fps} FPS no provador · modelo ${MODELOS[q.escolha.modelo] || q.escolha.modelo} · ajuste ${q.ajuste.y.toFixed(0)} mm / ${q.ajuste.z.toFixed(0)} mm / ${(q.ajuste.s * 100).toFixed(0)}%`;
+        $('#info').textContent = `${q.rosto ? 'Rosto detectado' : 'Sem rosto'} · ${q.fps} FPS no provador · modelo ${MODELOS[q.escolha.modelo] || q.escolha.modelo} · rosto virado ${q.angulo ? Math.round(q.angulo.guinada) + '°, queixo ' + Math.round(q.angulo.inclinacao) + '°' : '-'}${q.alvo ? ' · pedindo: ' + (POSES[q.alvo] || q.alvo) : ''} · ajuste ${q.ajuste.y.toFixed(0)} mm / ${q.ajuste.z.toFixed(0)} mm / ${(q.ajuste.s * 100).toFixed(0)}%`;
       });
       canal.on('broadcast', { event: 'foto' }, ({ payload: f }) => {
         fotos.push(f);
         const a = document.createElement('a');
         a.href = f.img; a.download = `prova-${fotos.length}.jpg`;
-        a.innerHTML = `<img src="${f.img}" alt="Foto ${fotos.length}">`;
+        a.innerHTML = `<img src="${f.img}" alt="Foto ${fotos.length}"><small>${f.pose ? (POSES[f.pose] || f.pose) : 'manual'}</small>`;
         $('#fotos').prepend(a);
       });
       canal.subscribe((st) => { $('#estado').textContent = st === 'SUBSCRIBED' ? 'conectada à sala ' + codigo : st.toLowerCase(); });
