@@ -32,6 +32,7 @@
     <label>Sala <input id="sala" inputmode="numeric" maxlength="6"></label>
     <button id="btnConectar">Conectar</button>
     <span id="estado">desconectada</span>
+    <button id="btnRecarregar" title="Faz o celular do cliente baixar a versão mais nova">Atualizar o provador</button>
   </header>
   <main>
     <section class="cartao">
@@ -100,13 +101,14 @@
     document.querySelectorAll('[data-zoom]').forEach((b) => b.onclick = () => enviar({ tipo: 'zoom', ...JSON.parse(b.dataset.zoom) }));
     document.querySelectorAll('[data-aj]').forEach((b) => b.onclick = () => enviar({ tipo: 'ajuste', ...JSON.parse(b.dataset.aj) }));
     $('#btnFoto').onclick = () => enviar({ tipo: 'foto' });
+    $('#btnRecarregar').onclick = () => enviar({ tipo: 'recarregar' });
 
     function conectar(codigo) {
       if (canal) sb.removeChannel(canal);
       canal = sb.channel('prova-' + codigo, { config: { broadcast: { self: false } } });
       canal.on('broadcast', { event: 'quadro' }, ({ payload: q }) => {
         $('#ao-vivo').src = q.img;
-        $('#info').textContent = `${q.rosto ? 'Rosto detectado' : 'Sem rosto'} · ${q.fps} FPS no provador · modelo ${MODELOS[q.escolha.modelo] || q.escolha.modelo} · rosto virado ${q.angulo ? Math.round(q.angulo.guinada) + '°, queixo ' + Math.round(q.angulo.inclinacao) + '°' : '-'}${q.alvo ? ' · pedindo: ' + (POSES[q.alvo] || q.alvo) : ''} · zoom ${q.zoom ? (q.zoom.modo === 'auto' ? 'auto ' : '') + q.zoom.z.toFixed(1) + 'x' : '-'} · ajuste ${q.ajuste.y.toFixed(0)} mm / ${q.ajuste.z.toFixed(0)} mm / ${(q.ajuste.s * 100).toFixed(0)}%`;
+        $('#info').textContent = `v${q.versao || '?'} · ${q.rosto ? 'Rosto detectado' : 'Sem rosto'} · ${q.fps} FPS no provador · modelo ${MODELOS[q.escolha.modelo] || q.escolha.modelo} · rosto virado ${q.angulo ? Math.round(q.angulo.guinada) + '°, queixo ' + Math.round(q.angulo.inclinacao) + '°' : '-'}${q.alvo ? ' · pedindo: ' + (POSES[q.alvo] || q.alvo) : ''} · zoom ${q.zoom ? (q.zoom.modo === 'auto' ? 'auto ' : '') + q.zoom.z.toFixed(1) + 'x' : '-'} · ajuste ${q.ajuste.y.toFixed(0)} mm / ${q.ajuste.z.toFixed(0)} mm / ${(q.ajuste.s * 100).toFixed(0)}%`;
       });
       canal.on('broadcast', { event: 'foto' }, ({ payload: f }) => {
         fotos.push(f);

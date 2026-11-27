@@ -766,6 +766,21 @@ function atualizarGuia() {
 const SUPABASE_URL = 'https://svmjsxwwsirrevthswak.supabase.co';
 const SUPABASE_CHAVE_PUBLICA = 'sb_publishable_rBA1X1Jql9cKsGkLDHQpEg_GoOAuaIY'; // chave pública (feita para o navegador)
 const sala = new URLSearchParams(location.search).get('sala');
+const VERSAO = 12;
+
+// Atualização sem tocar no celular: confere a versão publicada a cada 30 s e recarrega sozinho.
+async function recarregarLimpo() {
+  for (const r of (await navigator.serviceWorker?.getRegistrations?.()) || []) await r.unregister();
+  for (const k of (await caches?.keys?.()) || []) await caches.delete(k);
+  const u = new URL(location.href); u.searchParams.set('r', Date.now());
+  location.replace(u.toString());
+}
+setInterval(async () => {
+  try {
+    const v = (await (await fetch('versao.json?r=' + Date.now(), { cache: 'no-store' })).json()).versao;
+    if (v > VERSAO) recarregarLimpo();
+  } catch { /* sem internet: tenta de novo depois */ }
+}, 30000);
 if (sala) iniciarProvador(sala).catch((e) => console.error('assistida', e));
 
 function fotoReduzida(larguraMax, qualidade) {
@@ -798,6 +813,8 @@ async function iniciarProvador(codigo) {
       aplicarAjuste();
     } else if (c.tipo === 'foto') {
       mandarFoto(null);
+    } else if (c.tipo === 'recarregar') {
+      recarregarLimpo();
     } else if (c.tipo === 'zoom') {
       if (c.modo) zoom.modo = c.modo;
       if (c.fator) { const base = zoom.modo === 'manual' ? zoom.fator : zoom.z; zoom.modo = 'manual'; zoom.fator = THREE.MathUtils.clamp(base * c.fator, 1, 3.5); }
@@ -816,7 +833,7 @@ async function iniciarProvador(codigo) {
     if (!detector || !statusEl.classList.contains('oculto')) return;
     canal.send({ type: 'broadcast', event: 'quadro', payload: {
       img: fotoReduzida(360, 0.6), fps: stats.fps, rosto: ancora.visible, escolha: { ...escolha }, ajuste: { ...ajuste },
-      angulo: { ...angulo }, alvo: alvo?.id || null, zoom: { modo: zoom.modo, z: zoom.z },
+      versao: VERSAO, angulo: { ...angulo }, alvo: alvo?.id || null, zoom: { modo: zoom.modo, z: zoom.z },
     } });
   }, 600);
 }
