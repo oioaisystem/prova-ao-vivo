@@ -39,7 +39,8 @@
 
     .palco { position: relative; flex: 1; min-height: 0; background: #000; overflow: hidden; }
     .camada { position: absolute; inset: 0; }
-    .camada.espelho { transform: scaleX(-1); }
+    .camada { transform-origin: 0 0; }
+    .camada.espelho > * { transform: scaleX(-1); }
     .camada video, .camada img, .camada canvas {
       position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
     }
@@ -88,7 +89,7 @@
 <body>
   <header>
     <b>ÔIÔ <span>AI</span></b>
-    <small>Prova ao vivo · protótipo T10 · <b style="color:#00A4A8">versão 10</b></small>
+    <small>Prova ao vivo · protótipo T10 · <b style="color:#00A4A8">versão 11</b></small>
   </header>
 
   <div class="palco">
@@ -122,6 +123,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=10"></script>
+  <script type="module" src="app.js?v=11"></script>
 </body>
 </html>

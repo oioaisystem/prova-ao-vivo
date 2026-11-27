@@ -387,6 +387,35 @@ function giroPelosPontos(lm) {
   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(dirOlho, y, frente));
 }
 
+const caixa = { cx: 0.5, cy: 0.5, w: 0 };   // rosto na imagem da câmera (0..1, sem espelho)
+const zoom = { modo: 'auto', fator: 1.6, z: 1, tx: 0, ty: 0 };
+
+// Zoom da tela: 'auto' enquadra o rosto; 'manual' usa o fator da vendedora; 'nenhum' mostra tudo.
+function atualizarZoom() {
+  const el = camada.parentElement;
+  const eW = el.clientWidth, eH = el.clientHeight;
+  if (!eW || !W) return;
+  const s = Math.max(eW / W, eH / H);
+  const ox = (eW - W * s) / 2, oy = (eH - H * s) / 2;
+  const espelho = camada.classList.contains('espelho');
+  let px = ox + caixa.cx * W * s, py = oy + caixa.cy * H * s;
+  if (espelho) px = eW - px;
+  const fracRosto = (caixa.w * W * s) / eW;
+  let alvoZ = 1;
+  if (zoom.modo === 'auto' && caixa.w) alvoZ = 0.5 / Math.max(fracRosto, 0.05);
+  else if (zoom.modo === 'manual') alvoZ = zoom.fator;
+  alvoZ = THREE.MathUtils.clamp(alvoZ, 1, 3.5);
+  zoom.z += (alvoZ - zoom.z) * 0.12;
+  const z = zoom.z;
+  // rosto no centro da tela, sem mostrar borda preta
+  let tx = eW / 2 - z * px, ty = eH * 0.45 - z * py;
+  tx = THREE.MathUtils.clamp(tx, eW - z * eW, 0);
+  ty = THREE.MathUtils.clamp(ty, eH - z * eH, 0);
+  zoom.tx += (tx - zoom.tx) * 0.15; zoom.ty += (ty - zoom.ty) * 0.15;
+  camada.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${z})`;
+  zoom.janela = { eW, eH, s, ox, oy };
+}
+
 function atualizarPose(lm, matriz) {
   let q;
   if (matriz) {
@@ -402,6 +431,11 @@ function atualizarPose(lm, matriz) {
                   Math.max(dist2d(lm, 474, 476), dist2d(lm, 475, 477))) / 2;
   const s = irisPx / IRIS_MM;
   const p = ponto(lm, 168);
+  let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
+  for (const q of lm) { if (q.x < x0) x0 = q.x; if (q.x > x1) x1 = q.x; if (q.y < y0) y0 = q.y; if (q.y > y1) y1 = q.y; }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cw = x1 - x0;
+  if (!caixa.w) Object.assign(caixa, { cx, cy, w: cw });
+  else { caixa.cx += (cx - caixa.cx) * 0.2; caixa.cy += (cy - caixa.cy) * 0.2; caixa.w += (cw - caixa.w) * 0.1; }
 
   if (!temPose) { pos.copy(p); quat.copy(q); escala = s; temPose = true; }
   else {
@@ -466,7 +500,7 @@ async function abrirCamera() {
     if (fluxo) fluxo.getTracks().forEach((t) => t.stop());
     fluxo = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: frontal ? 'user' : 'environment', width: { ideal: MOVEL ? 640 : 1280 }, height: { ideal: MOVEL ? 480 : 720 } },
+      video: { facingMode: frontal ? 'user' : 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
     });
     video.srcObject = fluxo;
     await video.play();
@@ -534,6 +568,7 @@ function laco() {
     }
   }
   renderer.render(cena, camera);
+  atualizarZoom();
 
   stats.quadros++;
   janela.q++;
@@ -614,7 +649,17 @@ function capturarFoto() {
   ctx.drawImage(fonte, 0, 0, W, H);
   renderer.render(cena, camera);            // desenha agora para o quadro estar no buffer
   ctx.drawImage(canvas, 0, 0, W, H);
-  return c;
+  const j = zoom.janela;
+  if (!j || zoom.z < 1.02) return c;
+  const z = zoom.z;
+  const vx0 = ((0 - zoom.tx) / z - j.ox) / j.s, vx1 = ((j.eW - zoom.tx) / z - j.ox) / j.s;
+  const vy0 = ((0 - zoom.ty) / z - j.oy) / j.s, vy1 = ((j.eH - zoom.ty) / z - j.oy) / j.s;
+  const x0 = Math.max(0, vx0), y0 = Math.max(0, vy0);
+  const w = Math.min(W, vx1) - x0, h = Math.min(H, vy1) - y0;
+  const r = document.createElement('canvas');
+  r.width = Math.round(w); r.height = Math.round(h);
+  r.getContext('2d').drawImage(c, x0, y0, w, h, 0, 0, r.width, r.height);
+  return r;
 }
 $('#btnTirar').onclick = () => {
   const c = capturarFoto();
@@ -675,7 +720,18 @@ function definirPose(id, auto = true) {
 
 function atualizarGuia() {
   medirAngulo();
-  if (!alvo) return;
+  if (!alvo) {
+    if (!sala) return;
+    const longe = caixa.w && caixa.w < 0.2, perto = caixa.w > 0.72;
+    guia.style.display = longe || perto ? 'flex' : 'none';
+    guia.classList.remove('ok');
+    if (longe || perto) {
+      $('#guiaSeta').textContent = longe ? '🔍' : '↔';
+      $('#guiaTexto').textContent = longe ? 'Chegue um pouco mais perto da tela' : 'Afaste um pouco o rosto';
+      $('#guiaSub').textContent = 'para a foto sair com mais detalhe';
+    }
+    return;
+  }
   const p = POSES[alvo.id];
   const dg = p.guinada - angulo.guinada, di = p.inclinacao - angulo.inclinacao;
   const espelhado = camada.classList.contains('espelho');
@@ -742,6 +798,9 @@ async function iniciarProvador(codigo) {
       aplicarAjuste();
     } else if (c.tipo === 'foto') {
       mandarFoto(null);
+    } else if (c.tipo === 'zoom') {
+      if (c.modo) zoom.modo = c.modo;
+      if (c.fator) { const base = zoom.modo === 'manual' ? zoom.fator : zoom.z; zoom.modo = 'manual'; zoom.fator = THREE.MathUtils.clamp(base * c.fator, 1, 3.5); }
     } else if (c.tipo === 'pose') {
       definirPose(c.id, c.auto !== false);
     }
@@ -757,7 +816,7 @@ async function iniciarProvador(codigo) {
     if (!detector || !statusEl.classList.contains('oculto')) return;
     canal.send({ type: 'broadcast', event: 'quadro', payload: {
       img: fotoReduzida(360, 0.6), fps: stats.fps, rosto: ancora.visible, escolha: { ...escolha }, ajuste: { ...ajuste },
-      angulo: { ...angulo }, alvo: alvo?.id || null,
+      angulo: { ...angulo }, alvo: alvo?.id || null, zoom: { modo: zoom.modo, z: zoom.z },
     } });
   }, 600);
 }

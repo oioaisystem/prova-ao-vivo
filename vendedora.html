@@ -49,6 +49,13 @@
       <div class="botoes" id="lentes"></div>
       <h3>Calibre</h3>
       <div class="botoes" id="calibres"></div>
+      <h3>Zoom da imagem</h3>
+      <div class="botoes">
+        <button data-zoom='{"modo":"auto"}'>Automático (enquadra o rosto)</button>
+        <button data-zoom='{"fator":1.15}'>+ Aproximar</button>
+        <button data-zoom='{"fator":0.87}'>− Afastar</button>
+        <button data-zoom='{"modo":"nenhum"}'>Sem zoom</button>
+      </div>
       <h3>Ajuste fino</h3>
       <div class="botoes">
         <button data-aj='{"dy":1}'>▲ Subir</button>
@@ -90,6 +97,7 @@
       const b = document.createElement('button'); b.textContent = nome;
       b.onclick = () => enviar({ tipo: 'pose', id, auto: $('#auto').checked }); $('#poses').appendChild(b);
     }
+    document.querySelectorAll('[data-zoom]').forEach((b) => b.onclick = () => enviar({ tipo: 'zoom', ...JSON.parse(b.dataset.zoom) }));
     document.querySelectorAll('[data-aj]').forEach((b) => b.onclick = () => enviar({ tipo: 'ajuste', ...JSON.parse(b.dataset.aj) }));
     $('#btnFoto').onclick = () => enviar({ tipo: 'foto' });
 
@@ -98,7 +106,7 @@
       canal = sb.channel('prova-' + codigo, { config: { broadcast: { self: false } } });
       canal.on('broadcast', { event: 'quadro' }, ({ payload: q }) => {
         $('#ao-vivo').src = q.img;
-        $('#info').textContent = `${q.rosto ? 'Rosto detectado' : 'Sem rosto'} · ${q.fps} FPS no provador · modelo ${MODELOS[q.escolha.modelo] || q.escolha.modelo} · rosto virado ${q.angulo ? Math.round(q.angulo.guinada) + '°, queixo ' + Math.round(q.angulo.inclinacao) + '°' : '-'}${q.alvo ? ' · pedindo: ' + (POSES[q.alvo] || q.alvo) : ''} · ajuste ${q.ajuste.y.toFixed(0)} mm / ${q.ajuste.z.toFixed(0)} mm / ${(q.ajuste.s * 100).toFixed(0)}%`;
+        $('#info').textContent = `${q.rosto ? 'Rosto detectado' : 'Sem rosto'} · ${q.fps} FPS no provador · modelo ${MODELOS[q.escolha.modelo] || q.escolha.modelo} · rosto virado ${q.angulo ? Math.round(q.angulo.guinada) + '°, queixo ' + Math.round(q.angulo.inclinacao) + '°' : '-'}${q.alvo ? ' · pedindo: ' + (POSES[q.alvo] || q.alvo) : ''} · zoom ${q.zoom ? (q.zoom.modo === 'auto' ? 'auto ' : '') + q.zoom.z.toFixed(1) + 'x' : '-'} · ajuste ${q.ajuste.y.toFixed(0)} mm / ${q.ajuste.z.toFixed(0)} mm / ${(q.ajuste.s * 100).toFixed(0)}%`;
       });
       canal.on('broadcast', { event: 'foto' }, ({ payload: f }) => {
         fotos.push(f);
