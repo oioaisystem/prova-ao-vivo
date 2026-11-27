@@ -45,7 +45,9 @@ const escolha = { modelo: 'redonda', cor: 'preto', lente: 'incolor', calibre: nu
 
 // ---------- Cena 3D (câmera ortográfica em pixels do vídeo) ----------
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: false });
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const MOVEL = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+// No celular a tela já é muito densa: desenhar em 1x economiza GPU para a detecção.
+renderer.setPixelRatio(MOVEL ? 1 : Math.min(2, window.devicePixelRatio || 1));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const cena = new THREE.Scene();
@@ -346,7 +348,7 @@ async function abrirCamera() {
     if (fluxo) fluxo.getTracks().forEach((t) => t.stop());
     fluxo = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: frontal ? 'user' : 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      video: { facingMode: frontal ? 'user' : 'environment', width: { ideal: MOVEL ? 640 : 1280 }, height: { ideal: MOVEL ? 480 : 720 } },
     });
     video.srcObject = fluxo;
     await video.play();
