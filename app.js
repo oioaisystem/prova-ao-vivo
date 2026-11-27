@@ -43,6 +43,7 @@ const LENTES = {
 const CALIBRES = [[48, 20], [49, 20], [50, 19], [52, 18], [54, 17], [56, 16], [58, 14]];
 
 const escolha = { modelo: 'foto01', cor: 'preto', lente: 'incolor', calibre: null };
+const ajuste = { y: 0, z: 0, s: 1 };   // ajuste fino (mm e escala), comandado pela vendedora
 
 // ---------- Cena 3D (câmera ortográfica em pixels do vídeo) ----------
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: false });
@@ -323,8 +324,16 @@ function trocarOculos(g) {
       if (mp && !Object.values(cacheFoto).some((c) => c.frente === mp || c.haste === mp)) mp.dispose();
     });
   }
+  g.userData.base = g.position.clone();
   oculos = g;
+  aplicarAjuste();
   ancora.add(g);
+}
+
+function aplicarAjuste() {
+  if (!oculos) return;
+  oculos.position.copy(oculos.userData.base).add(new THREE.Vector3(0, ajuste.y, ajuste.z));
+  oculos.scale.setScalar(ajuste.s);
 }
 
 // ---------- Pose a partir dos pontos do rosto ----------
@@ -607,6 +616,55 @@ window.__t10 = { stats, medidas, escolha, textoResultado, foto: () => capturarFo
 
 montarOculos();
 requestAnimationFrame(laco);
+
+// ---------- Prova assistida (T58b): este aparelho é o PROVADOR; a vendedora comanda de outro ----------
+const SUPABASE_URL = 'https://svmjsxwwsirrevthswak.supabase.co';
+const SUPABASE_CHAVE_PUBLICA = 'sb_publishable_rBA1X1Jql9cKsGkLDHQpEg_GoOAuaIY'; // chave pública (feita para o navegador)
+const sala = new URLSearchParams(location.search).get('sala');
+if (sala) iniciarProvador(sala).catch((e) => console.error('assistida', e));
+
+function fotoReduzida(larguraMax, qualidade) {
+  const c = capturarFoto();
+  const k = Math.min(1, larguraMax / c.width);
+  const r = document.createElement('canvas');
+  r.width = Math.round(c.width * k); r.height = Math.round(c.height * k);
+  r.getContext('2d').drawImage(c, 0, 0, r.width, r.height);
+  return r.toDataURL('image/jpeg', qualidade);
+}
+
+async function iniciarProvador(codigo) {
+  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA);
+  const canal = sb.channel('prova-' + codigo, { config: { broadcast: { self: false } } });
+  const selo = document.createElement('small');
+  selo.style.cssText = 'margin-left:auto;background:#00A4A8;color:#fff;padding:4px 10px;border-radius:999px;font-weight:700';
+  selo.textContent = 'Sala ' + codigo + ' · conectando…';
+  document.querySelector('header').appendChild(selo);
+
+  const clicar = (linha, id) => document.querySelector(`${linha} [data-id="${id}"]`)?.click();
+  canal.on('broadcast', { event: 'comando' }, ({ payload: c }) => {
+    if (c.tipo === 'modelo') clicar('#linhaModelos', c.id);
+    else if (c.tipo === 'cor') clicar('#linhaCores', c.id);
+    else if (c.tipo === 'lente') clicar('#linhaLentes', c.id);
+    else if (c.tipo === 'calibre') { selCalibre.value = c.valor; selCalibre.onchange(); }
+    else if (c.tipo === 'ajuste') {
+      ajuste.y += c.dy || 0; ajuste.z += c.dz || 0; ajuste.s *= c.ds || 1;
+      if (c.zerar) { ajuste.y = 0; ajuste.z = 0; ajuste.s = 1; }
+      aplicarAjuste();
+    } else if (c.tipo === 'foto') {
+      canal.send({ type: 'broadcast', event: 'foto', payload: { img: fotoReduzida(800, 0.82), escolha: { ...escolha }, ajuste: { ...ajuste }, quando: Date.now() } });
+    }
+  });
+  canal.subscribe((st) => {
+    selo.textContent = 'Sala ' + codigo + (st === 'SUBSCRIBED' ? ' · vendedora conectada' : ' · ' + st.toLowerCase());
+  });
+  setInterval(() => {
+    if (!detector || !statusEl.classList.contains('oculto')) return;
+    canal.send({ type: 'broadcast', event: 'quadro', payload: {
+      img: fotoReduzida(360, 0.6), fps: stats.fps, rosto: ancora.visible, escolha: { ...escolha }, ajuste: { ...ajuste },
+    } });
+  }, 600);
+}
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

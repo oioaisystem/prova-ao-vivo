@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#001A3E">
+  <title>ÔIÔ AI · Vendedora (prova assistida)</title>
+  <style>
+    :root { --marinho:#001A3E; --verde:#00A4A8; --fundo:#F5F7FA; font-family: Montserrat, Inter, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--fundo); color:var(--marinho); }
+    header { background:var(--marinho); color:#fff; padding:10px 14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    header b span { color:var(--verde); }
+    header input { width:90px; font:inherit; padding:6px 10px; border-radius:10px; border:0; }
+    #estado { font-size:13px; opacity:.85; }
+    main { display:grid; grid-template-columns: minmax(280px, 1fr) minmax(260px, 360px); gap:12px; padding:12px; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+    .cartao { background:#fff; border-radius:14px; padding:12px; box-shadow:0 1px 3px rgba(0,26,62,.08); }
+    #ao-vivo { width:100%; max-height:70vh; object-fit:contain; background:#000; border-radius:10px; display:block; min-height:200px; }
+    #info { font-size:13px; margin-top:6px; }
+    h3 { margin:10px 0 6px; font-size:13px; text-transform:uppercase; opacity:.7; }
+    .botoes { display:flex; flex-wrap:wrap; gap:6px; }
+    button { font:inherit; font-size:14px; border-radius:999px; border:1.5px solid #cfd8e3; background:#fff; color:var(--marinho); padding:8px 12px; cursor:pointer; min-height:40px; }
+    button.principal { background:var(--verde); border-color:var(--verde); color:#fff; font-weight:700; width:100%; font-size:16px; }
+    #fotos { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:8px; margin-top:8px; }
+    #fotos a img { width:100%; border-radius:8px; display:block; }
+  </style>
+</head>
+<body>
+  <header>
+    <b>ÔIÔ <span>AI</span> · Vendedora</b>
+    <label>Sala <input id="sala" inputmode="numeric" maxlength="6"></label>
+    <button id="btnConectar">Conectar</button>
+    <span id="estado">desconectada</span>
+  </header>
+  <main>
+    <section class="cartao">
+      <img id="ao-vivo" alt="O que o cliente está vendo">
+      <div id="info">Aguardando o provador…</div>
+    </section>
+    <section class="cartao">
+      <button class="principal" id="btnFoto">📸 Tirar foto agora</button>
+      <h3>Modelo</h3>
+      <div class="botoes" id="modelos"></div>
+      <h3>Lente</h3>
+      <div class="botoes" id="lentes"></div>
+      <h3>Calibre</h3>
+      <div class="botoes" id="calibres"></div>
+      <h3>Ajuste fino</h3>
+      <div class="botoes">
+        <button data-aj='{"dy":1}'>▲ Subir</button>
+        <button data-aj='{"dy":-1}'>▼ Descer</button>
+        <button data-aj='{"dz":2}'>Afastar do rosto</button>
+        <button data-aj='{"dz":-2}'>Aproximar</button>
+        <button data-aj='{"ds":1.02}'>Maior</button>
+        <button data-aj='{"ds":0.98}'>Menor</button>
+        <button data-aj='{"zerar":true}'>Zerar</button>
+      </div>
+      <h3>Fotos tiradas</h3>
+      <div id="fotos"></div>
+    </section>
+  </main>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    const sb = createClient('https://svmjsxwwsirrevthswak.supabase.co', 'sb_publishable_rBA1X1Jql9cKsGkLDHQpEg_GoOAuaIY');
+    const $ = (s) => document.querySelector(s);
+    const MODELOS = { foto01: 'Peça real 01', redonda: 'Redonda', retangular: 'Retangular', gatinho: 'Gatinho', aviador: 'Aviador' };
+    const LENTES = { incolor: 'Incolor', cinza: 'Solar cinza', marrom: 'Solar marrom', verde: 'Solar G15' };
+    const CALIBRES = ['48-20', '50-19', '52-18', '54-17', '56-16', '58-14'];
+    let canal = null;
+    const fotos = [];
+    window.__vend = { fotos };
+
+    const enviar = (c) => canal?.send({ type: 'broadcast', event: 'comando', payload: c });
+    const grupo = (alvo, lista, tipo, chave = 'id') => {
+      for (const [id, nome] of Object.entries(lista)) {
+        const b = document.createElement('button'); b.textContent = nome;
+        b.onclick = () => enviar({ tipo, [chave]: id }); $(alvo).appendChild(b);
+      }
+    };
+    grupo('#modelos', MODELOS, 'modelo');
+    grupo('#lentes', LENTES, 'lente');
+    grupo('#calibres', Object.fromEntries(CALIBRES.map((c) => [c, c])), 'calibre', 'valor');
+    document.querySelectorAll('[data-aj]').forEach((b) => b.onclick = () => enviar({ tipo: 'ajuste', ...JSON.parse(b.dataset.aj) }));
+    $('#btnFoto').onclick = () => enviar({ tipo: 'foto' });
+
+    function conectar(codigo) {
+      if (canal) sb.removeChannel(canal);
+      canal = sb.channel('prova-' + codigo, { config: { broadcast: { self: false } } });
+      canal.on('broadcast', { event: 'quadro' }, ({ payload: q }) => {
+        $('#ao-vivo').src = q.img;
+        $('#info').textContent = `${q.rosto ? 'Rosto detectado' : 'Sem rosto'} · ${q.fps} FPS no provador · modelo ${MODELOS[q.escolha.modelo] || q.escolha.modelo} · ajuste ${q.ajuste.y.toFixed(0)} mm / ${q.ajuste.z.toFixed(0)} mm / ${(q.ajuste.s * 100).toFixed(0)}%`;
+      });
+      canal.on('broadcast', { event: 'foto' }, ({ payload: f }) => {
+        fotos.push(f);
+        const a = document.createElement('a');
+        a.href = f.img; a.download = `prova-${fotos.length}.jpg`;
+        a.innerHTML = `<img src="${f.img}" alt="Foto ${fotos.length}">`;
+        $('#fotos').prepend(a);
+      });
+      canal.subscribe((st) => { $('#estado').textContent = st === 'SUBSCRIBED' ? 'conectada à sala ' + codigo : st.toLowerCase(); });
+    }
+    $('#btnConectar').onclick = () => conectar($('#sala').value.trim());
+    const p = new URLSearchParams(location.search).get('sala');
+    if (p) { $('#sala').value = p; conectar(p); }
+  </script>
+</body>
+</html>
