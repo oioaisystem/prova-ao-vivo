@@ -133,7 +133,7 @@ async function carregarFoto(base) {
   const carregador = new THREE.TextureLoader();
   const tex = (u) => new Promise((ok, erro) => carregador.load(u, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; ok(t); }, undefined, erro));
   const [info, frente, lente, haste] = await Promise.all([
-    fetch(base + '.json').then((r) => r.json()), tex(base + '-frente.png'), tex(base + '-lente.png'), tex(base + '-haste.png'),
+    fetch(base + '.json').then((r) => r.json()), tex(base + '-frente.png?v=6'), tex(base + '-lente.png'), tex(base + '-haste.png?v=6'),
   ]);
   lente.colorSpace = THREE.NoColorSpace;
   return (cacheFoto[base] = { info, frente, lente, haste });

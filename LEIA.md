@@ -27,3 +27,4 @@ Link público (GitHub Pages, repositório `oioaisystem/prova-ao-vivo`, público)
 | 27/11/2026 | PC (navegador do app Claude), foto 299×303 | foto | 60 | ~11–15 (GPU) | Armação bem posicionada nos 4 modelos; carga do modelo ~0,8 s |
 | 27/11/2026 | PC do dono, Chrome 158, Windows | webcam frontal 1280×720 | 60 | 15,6 média (2.335 quadros, GPU) | Carga do modelo 0,7 s. DP estimada 56,4 mm e rosto 131 mm (conferir com a receita na T11) |
 | 27/11/2026 | Celular Android do dono (Chrome), v2 | frontal 1280×720 | 17 | 57 (GPU) | Armação bem posicionada de frente. Lento: na v3 o celular passa a usar câmera de 640×480 e desenho em 1x |
+| 27/11/2026 | Celular Android do dono (Chrome), v5, peça real 01 | frontal 640×480 | 22–25 | 39–45 (GPU) | Giro da cabeça acompanha bem (3/4, para cima, para baixo); perde o rosto só de perfil total. Contorno claro na borda da foto: corrigido na v6. DP estimada varia 45–68 mm conforme a pose (só vale de frente → T11) |
