@@ -568,6 +568,32 @@ const arquivo = $('#arquivo');
 $('#btnFoto').onclick = () => arquivo.click();
 $('#btnFoto2').onclick = () => arquivo.click();
 arquivo.onchange = () => { if (arquivo.files[0]) usarFoto(arquivo.files[0]).catch((e) => { msgEl.textContent = 'Erro: ' + e.message; }); };
+// ---------- Foto com a armação sobreposta (base da T15: depois a IA só faz o acabamento) ----------
+function capturarFoto() {
+  const fonte = modoFoto ? foto : video;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  if (camada.classList.contains('espelho')) { ctx.translate(W, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(fonte, 0, 0, W, H);
+  renderer.render(cena, camera);            // desenha agora para o quadro estar no buffer
+  ctx.drawImage(canvas, 0, 0, W, H);
+  return c;
+}
+$('#btnTirar').onclick = () => {
+  const c = capturarFoto();
+  c.toBlob(async (blob) => {
+    const nome = `oioai-prova-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.jpg`;
+    const arq = new File([blob], nome, { type: 'image/jpeg' });
+    if (navigator.canShare?.({ files: [arq] })) {
+      try { await navigator.share({ files: [arq], title: 'Prova ÔIÔ AI' }); return; } catch { /* cancelou: baixa */ }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nome; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }, 'image/jpeg', 0.92);
+};
+
 $('#btnCopiar').onclick = async () => {
   const txt = textoResultado();
   try { await navigator.clipboard.writeText(txt); alert('Resultado copiado. Cole no WhatsApp para o Claude.'); }
@@ -575,7 +601,7 @@ $('#btnCopiar').onclick = async () => {
 };
 
 // Para testes automáticos: window.__t10 expõe o estado.
-window.__t10 = { stats, medidas, escolha, textoResultado, usarFotoUrl: async (url) => {
+window.__t10 = { stats, medidas, escolha, textoResultado, foto: () => capturarFoto().toDataURL('image/jpeg', 0.9), usarFotoUrl: async (url) => {
   const b = await (await fetch(url)).blob(); await usarFoto(b);
 } };
 
